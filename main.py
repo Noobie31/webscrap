@@ -12,7 +12,7 @@ from playwright.async_api import async_playwright, Page, BrowserContext
 BASE_URL = "https://www.myagedcare.gov.au/find-a-provider/search/results"
 SEARCH_QUERY = "Sydney NSW 2000"  # Change this as needed
 SEARCH_TYPE = "aged-care-homes"
-DISTANCE = "10"  # Distance in km - set to empty string "" for no distance filter
+DISTANCE = "10"  # Distance in km 5, 10, 20, 50, 250 - set to empty string "" for no distance filter
 LINK_PER_SEARCH = 2  # Set to None or 0 to scrape all links, or set a specific number
 HEADLESS = False
 SLOW_MO_MS = 300
@@ -516,24 +516,33 @@ class MyAgedCareScraper:
             await playwright.stop()
 
     def save_to_csv(self):
-        """Save results to CSV file"""
+        """Save results to CSV file (excluding result_url)"""
         if not self.results:
             print("No data to save")
             return
             
+        # Define fieldnames excluding result_url
         fieldnames = ["company_name", "address", "suburb", "state", "postcode", 
-                     "telephone", "email", "website", "result_url"]
+                    "telephone", "email", "website"]
         
         with open('output.csv', 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             for row in self.results:
+                # Create a new row with only the fields we want
+                csv_row = {}
+                for field in fieldnames:
+                    csv_row[field] = row.get(field, "")  # Use get with default to avoid KeyError
+                
                 # Clean company name - remove extra text
-                company_name = row['company_name']
-                if '\n' in company_name:
+                company_name = csv_row['company_name']
+                if company_name and '\n' in company_name:
                     company_name = company_name.split('\n')[0].strip()
-                row['company_name'] = company_name
-                writer.writerow(row)
+                csv_row['company_name'] = company_name
+                
+                writer.writerow(csv_row)
+    
+        print(f"✅ Saved {len(self.results)} records to output.csv (without result_url)")
 
 async def main():
     scraper = MyAgedCareScraper()
